@@ -43,7 +43,12 @@ header {
     background-color: #77BD83;
 }
 
+.link:hover a {
+    color: #435359 ;
+}
+
 .link a {
+    font-weight: 600;
     color: white;
     text-decoration: none;
 

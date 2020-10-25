@@ -42,10 +42,10 @@ export default {
         },
     },
     methods: {
-        ...mapActions(["bindImgRef"]),
+        ...mapActions(["getIdList"]),
     },
     created() {
-        this.bindImgRef();
+        this.getIdList();
     },
 
   mounted() {

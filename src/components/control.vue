@@ -47,24 +47,21 @@ export default {
     data() {
         return {
             gallery: {},
-            file: {},
-            url: "",
+            file:'',
+            url: '',
             orderList: [],
             uploader: new FineUploaderTraditional({
                 options: {
                     autoUpload: false,
-                    request: {
-                        endpoint: "http://localhost:8000/uploads",
-                    },
+                    // request: {
+                    //     endpoint: "http://localhost:8000/uploads",
+                    // },
                     validation: {
                         allowedExtensions: ['jpeg', 'jpg', 'gif', 'png']
                     },
                 },
             }),
         };
-    },
-    firestore: {
-        documents: fStore.collection('images'),
     },
     computed: {
     ...mapGetters(['imageSort']),
@@ -73,9 +70,6 @@ export default {
         let vm = this;
         let imgInput = document.querySelector('.vue-fine-uploader-file-input input');
         imgInput.addEventListener('change',function(e){
-            console.log(e);
-            console.log( e.srcElement.files[0]);
-            console.log( e.target.files[0]);
             const file = e.srcElement.files[0];
             const imgURL = window.URL.createObjectURL(file);
             vm.url = imgURL;
@@ -83,7 +77,7 @@ export default {
         })
     },
     methods: {
-        ...mapActions(['getIdList']),
+        ...mapActions(['getIdList','addImageList','updateImageList','deleteImageList']),
         imgUp(e){
             const file = event.srcElement.files[0];
             const imgURL = window.URL.createObjectURL(file);
@@ -92,7 +86,9 @@ export default {
         },
         sendImg(){
             let vm = this;
-            console.log(vm.file.name);
+            if(vm.file == '' ){
+                return
+            }
             const storageRef = Firebase.storage().ref(`photo/${vm.file.name}`);
             const task = storageRef.put(vm.file);
             task.on("state_changed",
@@ -100,7 +96,6 @@ export default {
                 function complete() {
                     storageRef.getDownloadURL()
                     .then(function(url) {
-                        console.log("imageUrl",url);
                         let creatTime = new Date();
                         let imgData = { name: vm.file.name,
                                         stamp: Math.floor(Date.now()) ,
@@ -108,26 +103,22 @@ export default {
                                         order:null,
                                         time:creatTime.toLocaleString()
                                       }
-                        fStore.collection('images').add(imgData);
+                        vm.addImageList(imgData);
                     })
                     .then(() => {
-                        vm.getIdList();
-                        vm.url = "";
+                        vm.file = ''
+                        vm.url = '';
                         alert("上傳成功");
                     });
                 }
             )
         },
         deleteItem(id,name) {
-            fStore.collection('images')
-            .doc(id).delete()
+            this.deleteImageList(id)
             .then(()=> {
                 let storageRef = Firebase.storage().ref()
                 let desertRef = storageRef.child(`photo/${name}`);
                 desertRef.delete() })
-            .then(()=>{
-                this.getIdList();
-            })
         },
         saveOrder() {
             let orderlist = document.querySelectorAll('.order');
@@ -153,12 +144,10 @@ export default {
             }
             setList.forEach((item,index)=>{
                 if(item.order !== this.imageSort[index].order) {
-                    console.log("noooooooooo");
-                    fStore.collection('images').doc(item.id)
-                    .update({ order: item.order})
-                    .then(()=>{
-                        this.getIdList();
-                        console.log('Document successfully updated!')})
+                    let updataInfo = { id: item.id,
+                                       order: item.order
+                                     }
+                    this.updateImageList(updataInfo);
                 }
             })
 

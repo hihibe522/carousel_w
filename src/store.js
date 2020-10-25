@@ -34,7 +34,47 @@ export default new Vuex.Store({
                 })
                 .catch(error => reject(error))
             })
+        }, 
+        addImageList({ dispatch }, imageListObj) {
+            const { date } = imageListObj
+            return new Promise((resolve, reject) => {
+                fStore.collection('images')
+                .add({ ...imageListObj })
+                .then(() => {
+                  return dispatch('getIdList', date)
+                })
+                .then(() => resolve())
+                .catch(error => reject(error))
+            })
         },
+        updateImageList({ dispatch }, imageListObj) {
+            const { id, date } = imageListObj
+            delete imageListObj.id
+            return new Promise((resolve, reject) => {
+                fStore.collection('images')
+                .doc(id)
+                .update({
+                  ...imageListObj
+                })
+                .then(() => {
+                  return dispatch('getIdList', date)
+                })
+                .then(() => resolve())
+                .catch(error => reject(error))
+            })
+        },
+        deleteImageList({ dispatch }, id) {
+            return new Promise((resolve, reject) => {
+                fStore.collection('images')
+                .doc(id)
+                .delete()
+                .then(() => {
+                  return dispatch('getIdList')
+                })
+                .then(() => resolve())
+                .catch(error => reject(error))
+            })
+        }
     },
     mutations: {
         SET_IMAGE_DATA: function(state,data){
@@ -43,17 +83,18 @@ export default new Vuex.Store({
         ...vuexfireMutations
     },
     getters: {
-        imagesList: state => state.idList,
         imageSort: state => {
             let checkSortType = state.idList.every(img => img.order !== null )
             if(checkSortType){
                 return state.idList.sort(function (a, b) {
                     return a.order > b.order ? 1 : -1 ;
                 });
-            } 
-            return state.idList.sort(function (a, b) {
-                return a.stamp > b.stamp ? 1 : -1 ;
-            });
+            }
+            else{ 
+                return state.idList.sort(function (a, b) {
+                    return a.stamp > b.stamp ? 1 : -1 ;
+                });
+            }
         },
     },
     modules: {
