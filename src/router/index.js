@@ -7,23 +7,22 @@ import carousel from '@/components/carousel'
 Vue.use(Router)
 
 export default new Router({
-  routes: [
-    {
-      path: '/',
-      component: Mainboard,
-      children:[
-          {
-            path: '',
-            name: 'carousel',
-            component: carousel
-          },
-          {
-            path: '/control',
-            name: 'control',
-            component: control
-          },
-      ]
-
-    }
-  ]
+    routes: [
+        {
+          path: '/',
+          component: Mainboard,
+          children:[
+              {
+                path: '',
+                name: 'carousel',
+                component: carousel
+              },
+              {
+                path: '/control',
+                name: 'control',
+                component: control
+              },
+          ]
+        }
+    ]
 })

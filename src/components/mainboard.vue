@@ -1,8 +1,8 @@
 <template>
     <div class="container">
         <header>
-          <div class="link"><router-link to="/">觀看輪播</router-link></div>
-          <div class="link"><router-link to="/control">管理輪播圖</router-link></div>
+            <div class="link"><router-link to="/">觀看輪播</router-link></div>
+            <div class="link"><router-link to="/control">管理輪播圖</router-link></div>
         </header>
         <router-view></router-view>
     </div>
@@ -28,7 +28,7 @@ header {
     padding-bottom: 20px;
     border-bottom:3px solid #77BD83;
 }
-   
+
 .link {
     margin:10px ;
     padding: 10px;

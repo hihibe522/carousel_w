@@ -3,28 +3,41 @@
         <div class="imgCheckBox">
             <div>
                 <file-input multiple accept='image/*' :uploader="uploader">
-                    <span class="icon ion-upload"> 選擇圖片</span>
+                    <span class="icon ion-upload">選擇圖片</span>
                 </file-input>
                 <div class="sendBtn" @click="sendImg">上傳</div>
             </div>
             <img :src="url" alt="" />
         </div>
         <div class="controlBox">
-            <table v-if="imageSort.length>0">
+            <table v-if="orderList.length > 0">
             <thead>
                 <tr>
+                    <th><div class="sortBtn" @click="saveOrder">排序儲存</div></th>
                     <th>圖片</th>
                     <th>上傳時間</th>
-                    <th>順序<div class="sortBtn" @click="saveOrder">排序儲存</div></th>
                     <th>刪除</th>
                 </tr>
             </thead>
-                <tr v-for="(item, index) in imageSort" :key=item.stamp>
+            <tbody>
+                <tr v-for="(item, index) in orderList" :key="item.stamp">
+                    <td>
+                        <i v-if="index !== 0"
+                           :data-index="item.seq"
+                           class="fas fa-angle-double-up"
+                           @click="sortUp(index, item.seq)">
+                        </i>
+                        <i v-if="index !== orderList.length - 1"
+                           :data-index="item.seq"
+                           class="fas fa-angle-double-down"
+                           @click="sortDown(index, item.seq)">
+                        </i>
+                    </td>
                     <td><img :src="item.url" alt=""></td>
                     <td>{{item.time}}</td>
-                    <td><input type="number" :id="item.id" class="order" :value="index+1" min=1 :max="imageSort.length"></td>
                     <td><i class="fas fa-trash-alt" @click="deleteItem(item.id,item.name)"></i></td>
                 </tr>
+            </tbody>
             </table>
         </div>
     </div>
@@ -34,8 +47,6 @@
 import FineUploaderTraditional from "fine-uploader-wrappers";
 import FileInput from 'vue-fineuploader/file-input';
 
-import { db } from "../db";
-const fStore = db.firestore();
 import Firebase from 'firebase';
 import { mapGetters, mapActions } from "vuex";
 
@@ -46,10 +57,10 @@ export default {
     },
     data() {
         return {
-            gallery: {},
             file:'',
             url: '',
             orderList: [],
+            imgInput: '',
             uploader: new FineUploaderTraditional({
                 options: {
                     autoUpload: false,
@@ -64,103 +75,116 @@ export default {
         };
     },
     computed: {
-    ...mapGetters(['imageSort']),
+        ...mapGetters(['imageSort']),
+        controlImgList: function() {
+            let controlImgList = [];
+            return controlImgList = this.imageSort.map((item, index )=> {
+                return { seq: index+1 , ...item } ;
+            })
+            return controlImgList.sort(function (a, b) {
+                return a.seq > b.seq ? 1 : -1 ;
+            });
+        }
+    },
+    created() {
+        this.getIdList();
+        this.orderList = this.controlImgList ;
+    },
+    watch: {
+        controlImgList: function(newValue, oldValue) {
+            this.orderList = newValue ;
+        },
     },
     mounted() {
-        let vm = this;
-        let imgInput = document.querySelector('.vue-fine-uploader-file-input input');
-        imgInput.addEventListener('change',function(e){
-            const file = e.srcElement.files[0];
-            const imgURL = window.URL.createObjectURL(file);
-            vm.url = imgURL;
-            vm.file = e.target.files[0];
-        })
+        this.imgInput = document.querySelector('.vue-fine-uploader-file-input input');
+        this.imgInput.addEventListener('change',this.addInputListener);
+    },
+    beforeRouteLeave(to, from, next) {
+        this.imgInput.removeEventListener('change', this.addInputListener);
+        next();
     },
     methods: {
         ...mapActions(['getIdList','addImageList','updateImageList','deleteImageList']),
-        imgUp(e){
-            const file = event.srcElement.files[0];
+        addInputListener(e) {
+            const file = e.srcElement.files[0];
             const imgURL = window.URL.createObjectURL(file);
             this.url = imgURL;
             this.file = e.target.files[0];
         },
-        sendImg(){
-            let vm = this;
-            if(vm.file == '' ){
+        sortUp(index, seq) {
+            let focusIndex = index ;
+            let changeSeq = seq ;
+            changeSeq -- ;
+            let change = {...this.orderList[focusIndex], seq: changeSeq };
+            this.orderList.splice(focusIndex, 1, change);
+            focusIndex -- ;
+            changeSeq ++ ;
+            let change2 = {...this.orderList[focusIndex],seq:changeSeq };
+            this.orderList.splice(focusIndex, 1, change2 );
+            this.orderList.sort(function (a, b) {
+                return a.seq > b.seq ? 1 : -1 ;
+            });
+        },
+        sortDown(index, seq ) {
+            let focusIndex = index ;
+            let changeSeq = seq ;
+            changeSeq ++ ;
+            let change = {...this.orderList[focusIndex],seq:changeSeq };
+            this.orderList.splice(focusIndex, 1, change);
+            focusIndex ++ ;
+            changeSeq -- ;
+            let change2 = {...this.orderList[focusIndex],seq:changeSeq };
+            this.orderList.splice(focusIndex, 1, change2);
+            this.orderList.sort(function (a, b) {
+                return a.seq > b.seq ? 1 : -1 ;
+            });
+        },
+        saveOrder() {
+            let setList = [];
+            this.imageSort.forEach(outItem => {
+                let index = this.orderList.findIndex(inItem => inItem.id === outItem.id);
+                if(outItem.order !== this.orderList[index].seq) {
+                    let setItem = { id: outItem.id,
+                                    order: this.orderList[index].seq };
+                    setList.push(setItem);
+                }
+            });
+            // console.log(setList);
+            this.updateImageList(setList);
+
+        },
+        sendImg() {
+            if(this.file == '' ) {
                 return
             }
-            const storageRef = Firebase.storage().ref(`photo/${vm.file.name}`);
-            const task = storageRef.put(vm.file);
-            task.on("state_changed",
-                function progress(snapshot) { }, function error(err) { console.log(err);},
-                function complete() {
-                    storageRef.getDownloadURL()
-                    .then(function(url) {
-                        let creatTime = new Date();
-                        let imgData = { name: vm.file.name,
-                                        stamp: Math.floor(Date.now()) ,
-                                        url:url,
-                                        order:null,
-                                        time:creatTime.toLocaleString()
-                                      }
-                        vm.addImageList(imgData);
-                    })
-                    .then(() => {
-                        vm.file = ''
-                        vm.url = '';
-                        alert("上傳成功");
-                    });
-                }
-            )
+            const storageRef = Firebase.storage().ref(`photo/${this.file.name}`);
+            const task = storageRef.put(this.file);
+            task.on("state_changed", snapshot => {}, err => console.log(err),()=> {
+                storageRef.getDownloadURL()
+                .then( url => {
+                    let creatTime = new Date();
+                    let imgData = { name: this.file.name,
+                                    stamp: Math.floor(Date.now()) ,
+                                    url: url,
+                                    order: 0,
+                                    time:creatTime.toLocaleString()
+                                  };
+                    this.addImageList(imgData);
+                })
+                .then(() => {
+                    this.file = '';
+                    this.url = '';
+                    alert("上傳成功");
+                });
+            })
         },
         deleteItem(id,name) {
             this.deleteImageList(id)
             .then(()=> {
-                let storageRef = Firebase.storage().ref()
+                let storageRef = Firebase.storage().ref();
                 let desertRef = storageRef.child(`photo/${name}`);
                 desertRef.delete() })
         },
-        saveOrder() {
-            let orderlist = document.querySelectorAll('.order');
-            let listNum = [];
-            let setList = [];
-
-            try{ orderlist.forEach(item =>{
-                listNum.push(item.value)
-                let status = checkDuplicate(listNum);
-                if(status) {
-                    throw new Error("請確認是否有重複順序");
-                }
-                let setting = { id: item.id,
-                            order: item.value };
-                setList.push(setting);
-            })
-            }
-            catch(e){
-                alert(e);
-            }
-            if(setList.length !== orderlist.length) {
-                return
-            }
-            setList.forEach((item,index)=>{
-                if(item.order !== this.imageSort[index].order) {
-                    let updataInfo = { id: item.id,
-                                       order: item.order
-                                     }
-                    this.updateImageList(updataInfo);
-                }
-            })
-
-            // 判斷順序是否重複 
-            function checkDuplicate(arr) {
-                return arr.some((val, idx) => {
-                    return arr.includes(val, idx + 1);
-                });
-            }
-        }
-    },   
-    created() {
-        this.getIdList();
     },
 };
 </script>
@@ -172,6 +196,7 @@ img {
 }
 
 i {
+    margin: 5px;
     font-size: 1.5rem;
     cursor: pointer;
 }
@@ -181,7 +206,6 @@ i:hover {
 }
 
 table,tr, th {
-  /* border: 3px solid #167F92; */
   border-collapse: collapse;
   background-color: #323C50;
 }
@@ -197,16 +221,20 @@ tr img {
 
 td {
     padding: 10px 0;
-    width: 200px;
+    width: 280px;
     text-align: center;
 }
 
 tr>td:first-of-type {
-    width: 200px;
+    width: 50px;
+}
+
+tr>td:nth-last-of-type(2) {
+    width: 220px;
 }
 
 tr>td:last-of-type {
-    width: 50px;
+    width: 80px;
 }
 
 .vue-fine-uploader-file-input,
@@ -229,27 +257,24 @@ tr>td:last-of-type {
 .sendBtn:hover,
 .sortBtn:hover {
     background-color: antiquewhite;
-
 }
 
-.imgCheckBox{
+.imgCheckBox {
     padding: 10px;
+    margin-bottom: 20px;
     float: left;
     text-align: center;
     width: 40%;
     border: 3px solid #77BD83;
 }
-.imgCheckBox>div{
+.imgCheckBox>div {
     margin-bottom: 20px;
 }
 
-.controlBox{
-    float: right;
-}
-
-.controlBox input {
-    text-align: center;
-    font-size: 1.1rem;
+.controlBox {
+    float: left;
+    width: 55%;
+    margin-left: 20px;
 }
 
 </style>
